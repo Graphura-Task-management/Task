@@ -3,7 +3,7 @@ import { getToken, removeToken } from '../utils/tokenHelper';
 
 // Create axios instance
 const axiosInstance = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: 'https://task-no01.onrender.com/api',
   headers: {
     'Content-Type': 'application/json'
   }

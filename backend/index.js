@@ -1,83 +1,123 @@
-require('dotenv').config();
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const http = require('http');
-const { Server } = require('socket.io');
+require("dotenv").config();
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+const http = require("http");
+const { Server } = require("socket.io");
+
 const app = express();
 
-// Middleware
-app.use(cors());
+/* ==============================
+   CORS CONFIGURATION
+============================== */
+
+const CLIENT_URL = process.env.CLIENT_URL || "https://task-omega-pink.vercel.app";
+
+app.use(
+  cors({
+    origin: CLIENT_URL,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Database Connection
+/* ==============================
+   DATABASE CONNECTION
+============================== */
+
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
-    console.log(' MongoDB Connected Successfully');
+    console.log("MongoDB Connected Successfully");
   } catch (error) {
-    console.error(' MongoDB Connection Error:', error.message);
+    console.error("MongoDB Connection Error:", error.message);
     process.exit(1);
   }
 };
 
 connectDB();
 
-// Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/users', require('./routes/users'));
-app.use('/api/projects', require('./routes/projects'));
-app.use('/api/tasks', require('./routes/tasks'));
-app.use('/api/notifications', require('./routes/notification'));
-app.use('/api/reports', require('./routes/report')); 
+/* ==============================
+   ROUTES
+============================== */
 
-// Check Route
-app.get('/', (req, res) => {
-  res.json({ 
-    message: 'Task Management API is running',
-    version: '1.0.0'
+app.use("/api/auth", require("./routes/auth"));
+app.use("/api/users", require("./routes/users"));
+app.use("/api/projects", require("./routes/projects"));
+app.use("/api/tasks", require("./routes/tasks"));
+app.use("/api/notifications", require("./routes/notification"));
+app.use("/api/reports", require("./routes/report"));
+
+/* ==============================
+   HEALTH CHECK ROUTE
+============================== */
+
+app.get("/", (req, res) => {
+  res.json({
+    message: "Task Management API is running",
+    version: "1.0.0",
+    environment: process.env.NODE_ENV || "development",
   });
 });
 
-// Error Handling Middleware
+/* ==============================
+   ERROR HANDLING
+============================== */
+
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ 
+  res.status(500).json({
     success: false,
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    message: "Something went wrong!",
+    error:
+      process.env.NODE_ENV === "development"
+        ? err.message
+        : undefined,
   });
 });
 
-// 404 Handler
+/* ==============================
+   404 HANDLER
+============================== */
+
 app.use((req, res) => {
-  res.status(404).json({ 
+  res.status(404).json({
     success: false,
-    message: 'Route not found' 
+    message: "Route not found",
   });
 });
+
+/* ==============================
+   SOCKET.IO SETUP
+============================== */
 
 const PORT = process.env.PORT || 5000;
-
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "*", 
-  }
+    origin: CLIENT_URL,
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
 });
 
-// Make io globally accessible in controllers
 global.io = io;
 
-io.on('connection', (socket) => {
-  console.log('Socket connected:', socket.id);
+io.on("connection", (socket) => {
+  console.log("Socket connected:", socket.id);
 
-  socket.on('disconnect', () => {
-    console.log('Socket disconnected:', socket.id);
+  socket.on("disconnect", () => {
+    console.log("Socket disconnected:", socket.id);
   });
 });
+
+/* ==============================
+   SERVER START
+============================== */
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
